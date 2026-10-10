@@ -5,10 +5,10 @@ const ASSETS = [
   'vendor/mediapipe/wasm/vision_wasm_internal.wasm',
   'vendor/mediapipe/wasm/vision_wasm_nosimd_internal.js',
   'vendor/mediapipe/wasm/vision_wasm_nosimd_internal.wasm',
-  'vendor/models/pose_landmarker_full.task',
 ];
 
-export async function checkModelAssets(request = fetch, root = ROOT) {
+export async function checkModelAssets(request = fetch, root = ROOT, variant = 'full') {
+  if(!['full','heavy'].includes(variant))throw new Error('未知姿态模型');
   let server;
   try {
     server = await request(root, { method: 'HEAD', cache: 'no-store' });
@@ -20,7 +20,7 @@ export async function checkModelAssets(request = fetch, root = ROOT) {
   }
   let responses;
   try {
-    responses = await Promise.all(ASSETS.map(path => request(new URL(path, root), { method: 'HEAD', cache: 'no-store' })));
+    responses = await Promise.all([...ASSETS,`vendor/models/pose_landmarker_${variant}.task`].map(path => request(new URL(path, root), { method: 'HEAD', cache: 'no-store' })));
   } catch {
     throw new Error('读取模型时本地服务连接中断。请保持启动窗口打开，服务恢复后再点击分析。');
   }

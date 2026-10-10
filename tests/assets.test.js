@@ -21,3 +21,10 @@ test('available local assets pass without downloading their contents', async () 
   assert.ok(methods.length > 1);
   assert.ok(methods.every(method => method === 'HEAD'));
 });
+test('only the selected model is required, and heavy reports a missing download',async()=>{
+  const requests=[];
+  const request=async url=>{requests.push(url.pathname);return {ok:!url.pathname.endsWith('pose_landmarker_heavy.task')};};
+  await checkModelAssets(request,root,'full');
+  assert.ok(!requests.some(path=>path.includes('heavy')));
+  await assert.rejects(checkModelAssets(request,root,'heavy'),/文件缺失/);
+});

@@ -36,9 +36,11 @@ def main():
                 stream=tar.extractfile(f'package/{source}')
                 if stream is None:raise RuntimeError(f'Missing package file {source}')
                 save(destination,stream.read())
-    model='models/pose_landmarker_full.task'
-    if args.force or not (ROOT/'vendor'/model).exists():
-        print('Downloading full pose model from Google…',flush=True)
-        save(model,get('https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task'))
+    for variant in ['full','heavy']:
+        model=f'models/pose_landmarker_{variant}.task'
+        if args.force or not (ROOT/'vendor'/model).exists():
+            print(f'Downloading {variant} pose model from Google…',flush=True)
+            data=get(f'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_{variant}/float16/1/pose_landmarker_{variant}.task')
+            save(model,data)
     print('Local model and dependencies are ready. Start with: python3 scripts/serve.py')
 if __name__=='__main__':main()
