@@ -3,9 +3,9 @@ import {checkModelAssets} from './assets.js';
 import {SubjectTracker} from './subject.js';
 import {applyTemporalResult,enhanceSequence} from './temporal.js';
 const $=id=>document.getElementById(id), video=$('video');
-const state={frames:[],raw:[],url:null,busy:false,controller:null,view:null,a:null,b:null,loop:false,issueCount:0,focus:null,picking:false,model:null,base:[],temporal:[],depth:'base',noticeUntil:0};
+const state={frames:[],raw:[],url:null,busy:false,controller:null,view:null,a:null,b:null,loop:false,issueCount:0,focus:null,picking:false,model:null,base:[],temporal:[],depth:'base'};
 const options={mirror:false,skeleton:true,guides:true,hands:true,feet:true,trailLength:0.8,opacity:0.25,overlay:true,alignment:true};
-function notice(text,type='',hold=type==='error'?30000:5000){state.noticeUntil=Date.now()+hold;$('notice').textContent=text;$('notice').className=`notice ${type}`;}
+function notice(text,type=''){$('notice').textContent=text;$('notice').hidden=!text;$('notice').className=`notice ${type}`;}
 function controls(enabled){for(const id of ['play','timeline','set-a','set-b','loop'])$(id).disabled=!enabled;}
 function updateLoop(){const valid=clampLoop(state.a,state.b,video.duration);$('loop-times').textContent=valid?`${formatTime(state.a)} — ${formatTime(state.b)}`:'起点和终点须相隔至少 0.1 秒';if(!valid){$('loop').checked=false;state.loop=false;}}
 function waitVideoEvent(event,signal,timeout=10000){return new Promise((resolve,reject)=>{
@@ -26,8 +26,8 @@ async function loadVideo(file){
     $('clip-name').textContent=file.name;$('video-meta').textContent=`${video.videoWidth} × ${video.videoHeight} · ${video.duration.toFixed(1)} 秒`;
     $('timeline').max=video.duration;$('timeline').value=0;$('upload-card').hidden=true;$('analyze').disabled=false;$('replace').disabled=false;$('focus').disabled=false;controls(true);
     $('source-badge').textContent='已载入 · 尚未分析';$('time').textContent=`${formatTime(0)} / ${formatTime(video.duration)}`;
-    notice('视频已载入。点击「分析动作」，完成后可以同步慢放、循环和换角度。');drawQuality();
-  }catch(e){video.removeAttribute('src');video.load();URL.revokeObjectURL(state.url);state.url=null;$('upload-card').hidden=false;$('clip-name').textContent='导入你的舞段';$('video-meta').textContent='保留动作与音乐';$('source-badge').textContent='单人 · 全身 · 固定机位 · ≤90 秒';notice(e.message,'error');}
+    notice('点击「分析动作」开始。');drawQuality();
+  }catch(e){video.removeAttribute('src');video.load();URL.revokeObjectURL(state.url);state.url=null;$('upload-card').hidden=false;$('clip-name').textContent='导入你的舞段';$('video-meta').textContent='保留动作与音乐';$('source-badge').textContent='最长 90 秒';notice(e.message,'error');}
 }
 let visionModule = null;
 async function model(variant,numPoses){
@@ -43,7 +43,7 @@ async function analyze(){
   if(state.busy||!state.url)return;
   if(!state.view){notice('三维显示尚未就绪。请先下载依赖，或确认浏览器支持 WebGL。','error');return;}
   video.pause();state.picking=false;$('video-area').classList.remove('picking');state.busy=true;state.controller=new AbortController();const signal=state.controller.signal,variant=$('model').value,tracker=new SubjectTracker(state.focus);controls(false);$('analyze').disabled=true;$('replace').disabled=true;$('choose').disabled=true;$('model').disabled=true;$('focus').disabled=true;$('clear-focus').disabled=true;
-  $('analysis-panel').hidden=false;$('progress').value=0;$('analysis-text').textContent='加载本地姿态模型…';notice('分析期间请保持此页面打开。视频文件仅在本机读取。');state.frames=[];state.raw=[];resetDepth();state.view.root.visible=false;drawQuality();
+  $('analysis-panel').hidden=false;$('progress').value=0;$('analysis-text').textContent='加载本地姿态模型…';notice('');state.frames=[];state.raw=[];resetDepth();state.view.root.visible=false;drawQuality();
   let landmarker;
   try{
     landmarker=await model(variant,state.focus?3:1);if(signal.aborted)throw new DOMException('已取消','AbortError');
@@ -58,24 +58,24 @@ async function analyze(){
     }
     if(!raw.some(f=>f.points))throw new Error('没有检测到人体。请使用单人全身、人物清晰且光线充足的视频。');
     state.raw=raw;state.frames=smoothFrames(raw);state.base=state.frames;state.issueCount=state.frames.filter(f=>f.issue).length;
-    state.model=variant;$('stage-empty').hidden=true;$('source-badge').textContent=`已分析 · ${variant==='heavy'?'Heavy':'Full'} · 三维姿态估计`;$('pose-state').textContent='可旋转观察';$('analyze').textContent='重新分析 ↗';
+    state.model=variant;$('stage-empty').hidden=true;$('source-badge').textContent=`分析完成 · ${variant==='heavy'?'Heavy':'Full'}`;$('pose-state').textContent='可旋转观察';$('analyze').textContent='重新分析 ↗';
     state.a=0;state.b=video.duration;updateLoop();drawQuality();
-    notice(`分析完成，共 ${n} 帧。${state.issueCount} 帧存在异常；低置信度的关节与连线已隐藏。三维轨迹相对骨盆，整体位移请参考原视频。`,state.issueCount?'warning':'');
+    notice('');
   }catch(e){state.frames=[];state.raw=[];$('stage-empty').hidden=false;$('pose-state').textContent='等待分析';notice(e.name==='AbortError'?'分析已取消，可重试或更换视频。':`分析失败：${e.message}`,e.name==='AbortError'?'':'error');
   }finally{landmarker?.close();state.busy=false;state.controller=null;$('analysis-panel').hidden=true;controls(Boolean(state.url));$('analyze').disabled=!state.url;$('replace').disabled=!state.url;$('choose').disabled=false;$('model').disabled=false;$('focus').disabled=!state.url;$('focus').textContent=state.focus?'重新定位':'定位舞者';$('clear-focus').disabled=!state.focus;$('enhance').disabled=!state.frames.length;$('depth-model').disabled=!state.frames.length;await seek(0).catch(()=>{});}
 }
 function resetDepth(){state.base=[];state.temporal=[];state.depth='base';$('depth-model').value='base';$('depth-model').disabled=true;$('depth-model').options[1].disabled=true;$('enhance').disabled=true;$('image-alignment').disabled=false;}
-function selectDepth(){state.depth=$('depth-model').value;state.frames=state.depth==='temporal'?state.temporal:state.base;$('image-alignment').disabled=state.depth==='temporal';state.issueCount=state.frames.filter(f=>f.issue).length;drawQuality();$('source-badge').textContent=`已分析 · ${state.depth==='temporal'?'时序三维（试验）':state.model==='heavy'?'Heavy · 基础估计':'Full · 基础估计'}`;notice(state.depth==='temporal'?'时序三维已启用，可切换基础估计对照。脚掌和手指细节不在该模型范围内；遮挡与深度仍可能估计错误。':'已切换基础三维估计。');}
+function selectDepth(){state.depth=$('depth-model').value;state.frames=state.depth==='temporal'?state.temporal:state.base;$('image-alignment').disabled=state.depth==='temporal';state.issueCount=state.frames.filter(f=>f.issue).length;drawQuality();$('source-badge').textContent=`分析完成 · ${state.depth==='temporal'?'时序增强':state.model==='heavy'?'Heavy':'Full'}`;notice('');}
 async function enhance(){
   if(state.busy||!state.raw.length)return;
   video.pause();state.picking=false;$('video-area').classList.remove('picking');$('focus').textContent=state.focus?'重新定位':'定位舞者';state.busy=true;state.controller=new AbortController();const signal=state.controller.signal;controls(false);
   for(const id of ['enhance','analyze','replace','choose','model','depth-model','focus','clear-focus'])$(id).disabled=true;
-  $('analysis-panel').hidden=false;$('progress').removeAttribute('value');$('analysis-text').textContent='结合连续动作推断三维…';
+  notice('');$('analysis-panel').hidden=false;$('progress').removeAttribute('value');$('analysis-text').textContent='增强三维…';
   try{
     const data={width:video.videoWidth,height:video.videoHeight,frames:state.raw.map(f=>({t:f.t,screen:f.screen}))};
-    const result=await enhanceSequence(data,signal,seconds=>$('analysis-text').textContent=`结合连续动作推断三维 · ${seconds} 秒`);
+    const result=await enhanceSequence(data,signal,seconds=>$('analysis-text').textContent=`增强三维 · ${seconds} 秒`);
     state.temporal=applyTemporalResult(state.raw,result);$('depth-model').options[1].disabled=false;$('depth-model').value='temporal';selectDepth();
-  }catch(e){notice(e.name==='AbortError'?'三维增强已取消，原分析可以继续使用。':`三维增强失败：${e.message}`,e.name==='AbortError'?'':'error');}
+  }catch(e){notice(e.name==='AbortError'?'已取消增强。':`三维增强失败：${e.message}`,e.name==='AbortError'?'':'error');}
   finally{
     state.busy=false;state.controller=null;$('analysis-panel').hidden=true;$('progress').value=0;controls(Boolean(state.url));
     for(const id of ['enhance','analyze','replace','choose','model','depth-model','focus'])$(id).disabled=false;
@@ -108,7 +108,7 @@ function tick(){
     $('timeline').value=t;$('time').textContent=`${formatTime(t)} / ${formatTime(video.duration)}`;$('play').textContent=video.paused?'▶':'Ⅱ';$('play').setAttribute('aria-label',video.paused?'播放':'暂停');
     const observed=poseAt(t,state.frames),pose=options.alignment?alignToImage(observed,video.videoWidth/video.videoHeight):observed;
     state.view?.update(pose,t,state.frames,{...options,aspect:video.videoWidth/video.videoHeight});drawOverlay(t);
-    if(state.frames.length&&!state.picking){$('pose-state').textContent=pose?.issue?'此刻估计不可靠':'可旋转观察';if(Date.now()>=state.noticeUntil){if(pose?.issue)notice(`${pose.issue}。请对照左侧原视频；这里的估计视角可能有误。`,'warning',0);else if($('notice').dataset.lastIssue==='true')notice(`分析完成 · ${state.issueCount} 帧异常已标记。三维轨迹相对骨盆，整体位移请参考原视频。`,state.issueCount?'warning':'',0);$('notice').dataset.lastIssue=String(Boolean(pose?.issue));}}
+    if(state.frames.length&&!state.picking){$('pose-state').textContent=!pose?.points?'未检测到舞者':pose.unstable?'姿态暂不可用':pose.issue?'局部关节缺失':'可旋转观察';}
   }state.view?.draw();requestAnimationFrame(tick);
 }
 $('choose').onclick=()=>{if(!state.busy)$('file').click();};$('replace').onclick=$('choose').onclick;
@@ -117,10 +117,10 @@ for(const event of ['dragenter','dragover'])$('video-area').addEventListener(eve
 for(const event of ['dragleave','drop'])$('video-area').addEventListener(event,e=>{e.preventDefault();$('upload-card').classList.remove('dragging');});$('video-area').addEventListener('drop',e=>{if(e.dataTransfer.files[0])loadVideo(e.dataTransfer.files[0]);});
 $('analyze').onclick=analyze;$('cancel').onclick=()=>state.controller?.abort();
 function clearAnalysis(){state.frames=[];state.raw=[];resetDepth();state.model=null;state.view&&(state.view.root.visible=false);$('stage-empty').hidden=false;$('pose-state').textContent='等待分析';$('source-badge').textContent='已载入 · 请重新分析';$('analyze').textContent='分析动作 ↗';drawQuality();}
-$('focus').onclick=async()=>{if(state.busy||!state.url)return;video.pause();await seek(0);state.picking=!state.picking;$('video-area').classList.toggle('picking',state.picking);$('focus').textContent=state.picking?'取消定位':state.focus?'重新定位':'定位舞者';notice(state.picking?'请点击原视频中舞者的胸腹位置，避开镜子里的倒影；然后重新分析。':'已取消定位。');};
-$('video-area').addEventListener('pointerdown',event=>{if(!state.picking||state.busy)return;const rect=$('overlay').getBoundingClientRect(),scale=Math.min(rect.width/video.videoWidth,rect.height/video.videoHeight),w=video.videoWidth*scale,h=video.videoHeight*scale;let x=(event.clientX-rect.left-(rect.width-w)/2)/w,y=(event.clientY-rect.top-(rect.height-h)/2)/h;if(x<0||x>1||y<0||y>1)return;if(options.mirror)x=1-x;state.focus=[x,y];state.picking=false;$('video-area').classList.remove('picking');$('focus').textContent='重新定位';$('clear-focus').disabled=false;clearAnalysis();notice('已指定起始舞者位置。点击「分析动作」后，会按身体位置连续跟踪；失去目标时标记缺失。');});
-$('clear-focus').onclick=()=>{state.focus=null;state.picking=false;$('video-area').classList.remove('picking');$('focus').textContent='定位舞者';$('clear-focus').disabled=true;clearAnalysis();notice('已恢复自动选择舞者，请重新分析。');};
-$('model').onchange=()=>notice(`已选择 ${$('model').value==='heavy'?'Heavy（较慢）':'Full'}。点击「${state.frames.length?'重新分析':'分析动作'}」应用；更大的模型不保证每种动作都更准。`);
+$('focus').onclick=async()=>{if(state.busy||!state.url)return;video.pause();await seek(0);state.picking=!state.picking;$('video-area').classList.toggle('picking',state.picking);$('focus').textContent=state.picking?'取消定位':state.focus?'重新定位':'定位舞者';notice(state.picking?'点击舞者胸腹位置，避开倒影。':'已取消定位。');};
+$('video-area').addEventListener('pointerdown',event=>{if(!state.picking||state.busy)return;const rect=$('overlay').getBoundingClientRect(),scale=Math.min(rect.width/video.videoWidth,rect.height/video.videoHeight),w=video.videoWidth*scale,h=video.videoHeight*scale;let x=(event.clientX-rect.left-(rect.width-w)/2)/w,y=(event.clientY-rect.top-(rect.height-h)/2)/h;if(x<0||x>1||y<0||y>1)return;if(options.mirror)x=1-x;state.focus=[x,y];state.picking=false;$('video-area').classList.remove('picking');$('focus').textContent='重新定位';$('clear-focus').disabled=false;clearAnalysis();notice('舞者已定位，请重新分析。');});
+$('clear-focus').onclick=()=>{state.focus=null;state.picking=false;$('video-area').classList.remove('picking');$('focus').textContent='定位舞者';$('clear-focus').disabled=true;clearAnalysis();notice('已恢复自动选择，请重新分析。');};
+$('model').onchange=()=>notice(`已选择 ${$('model').value==='heavy'?'Heavy':'Full'}。点击「${state.frames.length?'重新分析':'分析动作'}」应用。`);
 $('play').onclick=async()=>{if(state.busy)return;if(video.paused){if(video.ended)video.currentTime=state.loop?state.a:0;try{await video.play();}catch{notice('浏览器未能开始播放，请重试。','error');}}else video.pause();};
 video.addEventListener('ended',()=>{if(state.loop&&clampLoop(state.a,state.b,video.duration)){video.currentTime=state.a;video.play().catch(()=>{});}});
 $('timeline').oninput=e=>{if(!state.busy)video.currentTime=+e.target.value;};
