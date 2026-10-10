@@ -15,7 +15,7 @@ async function seek(t,signal){if(Math.abs(video.currentTime-t)<0.0001&&video.rea
 async function loadVideo(file){
   if(state.busy)return;
   if(!file.type.startsWith('video/')&&!/\.(mp4|mov|webm)$/i.test(file.name)){notice('请选择 MP4、MOV 或 WebM 视频。','error');return;}
-  video.pause();controls(false);state.frames=[];state.raw=[];state.a=null;state.b=null;state.loop=false;$('loop').checked=false;$('loop-times').textContent='尚未设置';state.view&&(state.view.root.visible=false);$('pose-state').textContent='等待分析';$('stage-empty').hidden=false;$('analyze').disabled=true;$('replace').disabled=true;
+  video.pause();controls(false);state.frames=[];state.raw=[];state.a=null;state.b=null;state.loop=false;$('loop').checked=false;$('loop-times').textContent='尚未设置';state.view&&(state.view.root.visible=false);$('pose-state').textContent='等待分析';$('stage-empty').hidden=false;$('analyze').disabled=true;$('replace').disabled=true;$('analyze').textContent='分析动作 ↗';drawQuality();
   if(state.url)URL.revokeObjectURL(state.url);state.url=URL.createObjectURL(file);
   try{const ready=waitVideoEvent('loadedmetadata');video.src=state.url;video.load();await ready;
     if(!Number.isFinite(video.duration)||video.duration<=0)throw new Error('无法读取有效视频时长，请换一个文件。');
@@ -39,7 +39,7 @@ async function analyze(){
   $('analysis-panel').hidden=false;$('progress').value=0;$('analysis-text').textContent='加载本地姿态模型…';notice('分析期间请保持此页面打开。视频文件仅在本机读取。');state.frames=[];state.raw=[];state.view.root.visible=false;drawQuality();
   let landmarker;
   try{
-    landmarker=await model();if(signal.aborted)throw new DOMException('已取消','AbortError');
+    try{landmarker=await model();}catch{throw new Error('本地姿态模型未能加载。请运行 python3 scripts/download_assets.py，完成下载后重试');}if(signal.aborted)throw new DOMException('已取消','AbortError');
     const n=Math.ceil(video.duration*FPS),raw=[];
     for(let i=0;i<n;i++){
       if(signal.aborted)throw new DOMException('已取消','AbortError');const t=i/FPS;await seek(t,signal);
@@ -53,7 +53,7 @@ async function analyze(){
     $('stage-empty').hidden=true;$('source-badge').textContent='已分析 · 三维姿态估计';$('pose-state').textContent='可旋转观察';$('analyze').textContent='重新分析 ↗';
     state.a=0;state.b=video.duration;updateLoop();drawQuality();
     notice(`分析完成，共 ${n} 帧。检测到 ${state.issueCount} 帧异常，已在时间轴标记。三维轨迹相对骨盆，整体位移请参考原视频。`,state.issueCount?'warning':'');
-  }catch(e){state.frames=[];state.raw=[];$('stage-empty').hidden=false;$('pose-state').textContent='等待分析';notice(e.name==='AbortError'?'分析已取消，可重试或更换视频。':`分析失败：${e.message}。若模型文件缺失，请运行 python3 scripts/download_assets.py。`,e.name==='AbortError'?'':'error');
+  }catch(e){state.frames=[];state.raw=[];$('stage-empty').hidden=false;$('pose-state').textContent='等待分析';notice(e.name==='AbortError'?'分析已取消，可重试或更换视频。':`分析失败：${e.message}`,e.name==='AbortError'?'':'error');
   }finally{landmarker?.close();state.busy=false;state.controller=null;$('analysis-panel').hidden=true;controls(Boolean(state.url));$('analyze').disabled=!state.url;$('replace').disabled=!state.url;$('choose').disabled=false;await seek(0).catch(()=>{});}
 }
 function drawQuality(){const canvas=$('quality-strip');canvas.width=Math.max(1,canvas.clientWidth*devicePixelRatio);canvas.height=8;const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,8);ctx.fillStyle='#dda15e';const duration=video.duration;if(!Number.isFinite(duration))return;for(const f of state.frames){if(f.issue)ctx.fillRect(f.t/duration*canvas.width,0,Math.max(1,canvas.width/FPS/duration),8);}}
