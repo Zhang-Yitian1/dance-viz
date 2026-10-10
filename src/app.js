@@ -132,5 +132,6 @@ $('sound').onchange=e=>{video.muted=!e.target.checked;};
 $('trail-length').oninput=e=>{options.trailLength=+e.target.value;$('trail-value').textContent=`${options.trailLength.toFixed(1)} 秒`;};$('opacity').oninput=e=>{options.opacity=+e.target.value;$('opacity-value').textContent=`${Math.round(options.opacity*100)}%`;};
 document.addEventListener('keydown',e=>{if(e.code==='Space'&&!['INPUT','BUTTON','TEXTAREA','SELECT'].includes(document.activeElement.tagName)&&!$('play').disabled){e.preventDefault();$('play').click();}});
 window.addEventListener('resize',drawQuality);window.addEventListener('beforeunload',()=>{if(state.url)URL.revokeObjectURL(state.url);});
+window.addEventListener('themechange',event=>state.view?.setTheme(event.detail.theme));
 try{const {MotionView}=await import('./renderer.js');state.view=new MotionView($('stage'),()=>document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed','false')));}catch(e){notice('三维显示未能加载。首次运行请先执行 python3 scripts/download_assets.py，再刷新页面；浏览器须支持 WebGL。','error');console.error(e);}
 tick();

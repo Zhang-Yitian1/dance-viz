@@ -4,11 +4,12 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="在本地把短舞段变成可慢放、换角度观察的动作练习工具。">
   <title>舞迹 · 看清每一次移动</title>
+  <script src="src/theme.js"></script>
   <link rel="stylesheet" href="styles.css">
   <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
 </head>
 <body>
-  <header class="topbar"><a class="brand" href="./"><span class="brand-icon">↗</span>舞迹<span class="wordmark">DANCE / TRACE</span></a><span class="pill"><i></i>视频仅在本机处理</span><a href="https://github.com/ZhangYitian-world/dance-viz" target="_blank" rel="noreferrer">GitHub ↗</a></header>
+  <header class="topbar"><a class="brand" href="./"><span class="brand-icon">↗</span>舞迹<span class="wordmark">DANCE / TRACE</span></a><span class="pill"><i></i>视频仅在本机处理</span><button id="theme-toggle" class="theme-toggle" aria-label="深色模式" aria-pressed="false" title="切换浅色与深色"><span aria-hidden="true">◐</span>深色模式</button><a href="https://github.com/ZhangYitian-world/dance-viz" target="_blank" rel="noreferrer">GitHub ↗</a></header>
   <main>
     <section class="intro"><div><p class="eyebrow">换个角度，理解动作。</p><h1>看清每一次<span>移动。</span></h1><p class="subtitle">保留舞蹈的连贯性，慢下来观察手脚路线、身体转向和肩胯关系。</p></div></section>
     <section class="workspace" aria-label="舞蹈动作观察室">

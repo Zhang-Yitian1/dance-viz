@@ -9,7 +9,7 @@ export class MotionView{
     this.renderer=new THREE.WebGLRenderer({antialias:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,2));container.append(this.renderer.domElement);
     this.controls=new OrbitControls(this.camera,this.renderer.domElement);this.controls.target.set(0,1,0);this.controls.enableDamping=true;this.controls.minZoom=0.5;this.controls.maxZoom=4;this.controls.addEventListener('start',onRotate);
     this.scene.add(new THREE.HemisphereLight(0xffffff,0x87977f,2));const key=new THREE.DirectionalLight(0xffffff,2);key.position.set(2,4,3);this.scene.add(key);
-    const grid=new THREE.GridHelper(8,32,0xb8c7b1,0xd5dfce);grid.material.transparent=true;grid.material.opacity=0.55;this.scene.add(grid);
+    this.grid=null;
     this.root=new THREE.Group();this.root.position.y=1;this.root.visible=false;this.scene.add(this.root);
     this.skin=new THREE.MeshStandardMaterial({color:0x6f9b83,transparent:true,opacity:0.25,depthWrite:false,roughness:0.65});
     const cylinder=new THREE.CylinderGeometry(1,1,1,14);this.bones=EDGES.map(([a,b])=>{const mesh=new THREE.Mesh(cylinder,this.skin);mesh.userData={a,b};this.root.add(mesh);return mesh;});
@@ -18,7 +18,21 @@ export class MotionView{
     this.torso=new THREE.Mesh(sphere,this.skin);this.root.add(this.torso);this.pelvis=new THREE.Mesh(sphere,this.skin);this.root.add(this.pelvis);this.head=new THREE.Mesh(sphere,this.skin);this.head.scale.set(0.075,0.10,0.075);this.root.add(this.head);
     this.guides=[this.makeLine(2,0xcb815e),this.makeLine(2,0x527da3)];this.guides.forEach(x=>this.root.add(x));
     this.traces=[15,16,27,28].map((joint,i)=>{const line=this.makeLine(200,i<2?0xc77552:0x497c9d);line.userData.joint=joint;line.material.transparent=true;line.material.opacity=0.8;this.root.add(line);return line;});
+    this.setTheme(document.documentElement.dataset.theme);
     this.up=new THREE.Vector3(0,1,0);this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(container);this.resize();
+  }
+  setTheme(theme){
+    const dark=theme==='dark';
+    this.scene.background.set(dark?'#16231c':'#e9eee7');
+    this.skin.color.set(dark?'#a5d1b4':'#6f9b83');
+    this.skeleton.material.color.set(dark?'#9bd2b5':'#39725c');
+    this.jointColor=dark?0xb1d8bd:0x52806b;this.warningColor=dark?0xecb980:0xb77b35;
+    this.joints.forEach(mesh=>mesh.material.color.set(this.jointColor));
+    this.guides.forEach((line,i)=>line.material.color.set(i===0?(dark?'#efa77e':'#cb815e'):(dark?'#9cc8f4':'#527da3')));
+    this.traces.forEach((line,i)=>line.material.color.set(i<2?(dark?'#f0a579':'#c77552'):(dark?'#8dbcf0':'#497c9d')));
+    if(this.grid){this.scene.remove(this.grid);this.grid.geometry.dispose();this.grid.material.dispose();}
+    this.grid=new THREE.GridHelper(8,32,dark?0x3f604b:0xb8c7b1,dark?0x283e30:0xd5dfce);
+    this.grid.material.transparent=true;this.grid.material.opacity=dark?.45:.55;this.scene.add(this.grid);
   }
   makeLine(n,color){const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(n*3),3));geometry.setDrawRange(0,0);return new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({color}));}
   setLine(line,points){const array=line.geometry.attributes.position.array;points.forEach((p,i)=>array.set(p,i*3));line.geometry.attributes.position.needsUpdate=true;line.geometry.setDrawRange(0,points.length);line.geometry.computeBoundingSphere();}
@@ -35,7 +49,7 @@ export class MotionView{
     this.torso.position.copy(hip).lerp(shoulder,.65);this.torso.scale.set(new THREE.Vector3(...p[11]).distanceTo(new THREE.Vector3(...p[12]))*.45,length*.40,.075);orient(this.torso,new THREE.Vector3(...p[11]),new THREE.Vector3(...p[12]),spine);
     this.pelvis.position.copy(hip).lerp(shoulder,.10);this.pelvis.scale.set(new THREE.Vector3(...p[23]).distanceTo(new THREE.Vector3(...p[24]))*.55,length*.22,.085);orient(this.pelvis,new THREE.Vector3(...p[23]),new THREE.Vector3(...p[24]),spine);
     this.torso.visible=this.pelvis.visible=[11,12,23,24].every(reliable);this.head.visible=reliable(7)&&reliable(8);this.head.position.fromArray(p[7]).add(new THREE.Vector3(...p[8])).multiplyScalar(.5);
-    this.skeleton.visible=options.skeleton;this.setLine(this.skeleton,EDGES.filter(([a,b])=>reliable(a)&&reliable(b)).flatMap(([a,b])=>[p[a],p[b]]));this.joints.forEach(m=>{m.visible=options.skeleton&&reliable(m.userData.i);m.position.fromArray(p[m.userData.i]);m.material.color.set(pose.issue?0xb77b35:0x52806b);});
+    this.skeleton.visible=options.skeleton;this.setLine(this.skeleton,EDGES.filter(([a,b])=>reliable(a)&&reliable(b)).flatMap(([a,b])=>[p[a],p[b]]));this.joints.forEach(m=>{m.visible=options.skeleton&&reliable(m.userData.i);m.position.fromArray(p[m.userData.i]);m.material.color.set(pose.issue?this.warningColor:this.jointColor);});
     [[11,12],[23,24]].forEach(([a,b],i)=>{this.guides[i].visible=options.guides&&reliable(a)&&reliable(b);this.setLine(this.guides[i],[p[a],p[b]]);});
     this.traces.forEach((line,i)=>{line.visible=(i<2?options.hands:options.feet)&&jointReliable(pose,line.userData.joint);let points;if(options.alignment&&pose.source!=='motionbert'){points=[];for(let j=frameIndex(t,frames);j>=0&&frames[j].t>=t-options.trailLength;j--){const f=frames[j];if(!jointReliable(f,line.userData.joint)||f.unstable)break;const aligned=alignToImage(f,options.aspect);if(!aligned.projectionAligned)break;points.unshift(aligned.points[line.userData.joint]);}}else points=traceAt(t,frames,line.userData.joint,options.trailLength);const segments=[];for(let j=1;j<points.length;j++)segments.push(points[j-1],points[j]);this.setLine(line,segments);});
   }
