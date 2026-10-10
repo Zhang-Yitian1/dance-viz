@@ -1,0 +1,1 @@
+{"name":"dance-viz","version":"0.1.0","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.js","start":"python3 -m http.server 8765 --bind 127.0.0.1"},"description":"Local-first dance motion viewer with synchronized video and estimated 3D pose."}

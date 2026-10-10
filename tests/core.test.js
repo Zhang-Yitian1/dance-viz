@@ -1,0 +1,12 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {makeFrame,smoothFrames,poseAt,frameIndex,traceAt,clampLoop} from '../src/core.js';
+const result=()=>({landmarks:[Array.from({length:33},()=>({x:0.5,y:0.5,z:0,visibility:0.95}))],worldLandmarks:[Array.from({length:33},()=>({x:0.1,y:0.2,z:0.3}))]});
+test('missing pose remains missing; no hold-last-frame substitution',()=>{const frames=[makeFrame(0,result()),makeFrame(0.05,{})];const display=smoothFrames(frames);assert.equal(poseAt(0.05,display).points,null);assert.equal(display[1].issue,'未检测到完整人体');});
+test('camera coordinates map without aligning a bent torso upright',()=>{const f=makeFrame(0,result());assert.deepEqual(f.points[0],[0.1,-0.2,-0.3]);});
+test('occlusion and cropping mark uncertainty',()=>{const r=result();r.landmarks[0][15].visibility=0.1;assert.ok(makeFrame(0,r).issue);r.landmarks[0][15].x=1.2;assert.equal(makeFrame(0,r).issue,'身体部分出画');});
+test('NaN in model output invalidates frame',()=>{const r=result();r.worldLandmarks[0][0].x=NaN;assert.equal(makeFrame(0,r).points,null);});
+test('seeking follows actual timestamps and clamps at ends',()=>{const frames=[makeFrame(0,result()),makeFrame(0.05,result()),makeFrame(0.1,result())];assert.equal(frameIndex(0.075,frames),1);assert.equal(frameIndex(90,frames),2);assert.equal(frameIndex(-1,frames),0);});
+test('no interpolation or trail bridges uncertain gaps',()=>{const frames=[makeFrame(0,result()),makeFrame(0.05,{}),makeFrame(0.1,result())];assert.equal(poseAt(0.075,frames).points,null);assert.equal(traceAt(0.1,frames,15,1).length,1);});
+test('light smoothing preserves raw frames and stops at position jumps',()=>{const a=makeFrame(0,result()),r=result();r.worldLandmarks[0].forEach(p=>p.x=0.9);const b=makeFrame(0.05,r);const frames=smoothFrames([a,b]);assert.equal(a.points[0][0],0.1);assert.ok(frames[1].issue);});
+test('loop requires ordered valid bounds and minimum duration',()=>{assert.deepEqual(clampLoop(2,4,10),[2,4]);for(const [a,b]of [[4,2],[0,0.05],[-1,2],[0,11],[null,1]])assert.equal(clampLoop(a,b,10),null);});

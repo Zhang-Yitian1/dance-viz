@@ -1,0 +1,9 @@
+vendor/
+.DS_Store
+__pycache__/
+*.pyc
+node_modules/
+test-results/
+*.mp4
+*.mov
+*.webm
