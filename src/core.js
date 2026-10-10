@@ -13,7 +13,7 @@ export function makeFrame(t,result,index=0){
   const cropped=IMPORTANT.some(i=>landmarks[i].x<0||landmarks[i].x>1||landmarks[i].y<0||landmarks[i].y>1);
   return {t,screen:landmarks.map((p,i)=>[p.x,p.y,visibility[i]]),points:world.map(p=>[p.x,-p.y,-p.z]),confidence,issue:cropped?'身体部分出画':confidence<0.55?'部分关节被遮挡或识别不稳定':null};
 }
-export function jointReliable(pose,index){const p=pose?.screen?.[index];return Boolean(pose?.points?.[index]&&p?.[2]>=0.55&&p[0]>=0&&p[0]<=1&&p[1]>=0&&p[1]<=1);}
+export function jointReliable(pose,index){const p=pose?.screen?.[index];return Boolean((!pose?.supported||pose.supported.includes(index))&&pose?.points?.[index]&&p?.[2]>=0.55&&p[0]>=0&&p[0]<=1&&p[1]>=0&&p[1]<=1);}
 export function smoothFrames(raw){
   // Offline, centered smoothing preserves timestamps without causal filter lag.
   const marked=raw.map((f,i)=>{
@@ -36,6 +36,7 @@ export function poseAt(t,frames){
 }
 export function alignToImage(pose,aspect){
   // Weak-perspective image constraint, NOT a recovery of true depth or camera intrinsics.
+  if(pose?.source==='motionbert')return pose;
   if(!pose?.points||!pose.screen||!Number.isFinite(aspect)||aspect<=0||![11,12,23,24].every(i=>jointReliable(pose,i)))return pose;
   const center=[0,1].map(k=>(pose.screen[23][k]+pose.screen[24][k])/2);
   const hip=[0,1,2].map(k=>(pose.points[23][k]+pose.points[24][k])/2);
@@ -48,6 +49,6 @@ export function alignToImage(pose,aspect){
 }
 export function traceAt(t,frames,joint,seconds){
   const end=frameIndex(t,frames),out=[];
-  for(let i=end;i>=0&&frames[i].t>=t-seconds;i--){const f=frames[i];if(!f.points||f.issue)break;out.unshift(f.points[joint]);}return out;
+  for(let i=end;i>=0&&frames[i].t>=t-seconds;i--){const f=frames[i];if(!jointReliable(f,joint)||f.unstable)break;out.unshift(f.points[joint]);}return out;
 }
 export function clampLoop(a,b,duration){if(!Number.isFinite(a)||!Number.isFinite(b)||a<0||b>duration||b-a<0.1)return null;return [a,b];}

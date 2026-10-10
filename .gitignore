@@ -7,3 +7,5 @@ test-results/
 *.mp4
 *.mov
 *.webm
+
+.motion-env/

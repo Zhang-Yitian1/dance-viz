@@ -8,14 +8,14 @@
   <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
 </head>
 <body>
-  <header class="topbar"><a class="brand" href="./"><span class="brand-icon">↗</span>舞迹<span class="wordmark">DANCE / TRACE</span></a><span class="pill"><i></i>视频仅在本机处理</span><a href="https://github.com/Zhang-Yitian1/dance-viz" target="_blank" rel="noreferrer">GitHub ↗</a></header>
+  <header class="topbar"><a class="brand" href="./"><span class="brand-icon">↗</span>舞迹<span class="wordmark">DANCE / TRACE</span></a><span class="pill"><i></i>视频仅在本机处理</span><a href="https://github.com/ZhangYitian-world/dance-viz" target="_blank" rel="noreferrer">GitHub ↗</a></header>
   <main>
     <section class="intro"><div><p class="eyebrow">换个角度，理解动作。</p><h1>看清每一次<span>移动。</span></h1><p class="subtitle">保留舞蹈的连贯性，慢下来观察手脚路线、身体转向和肩胯关系。</p></div><div class="version">LOCAL DEMO<span>01 / 动作观察室</span></div></section>
     <section class="workspace" aria-label="舞蹈动作观察室">
       <div class="workspace-heading"><div><span class="step">01</span><strong id="clip-name">导入你的舞段</strong></div><span id="source-badge">单人 · 全身 · 固定机位 · ≤90 秒</span></div>
       <div class="viewers">
         <section class="viewer original"><div class="viewer-label"><span>原视频</span><span id="video-meta">保留动作与音乐</span></div>
-          <div class="video-area" id="video-area"><video id="video" playsinline preload="metadata" aria-label="原始舞蹈视频"></video><canvas id="overlay" aria-label="原视频身体关键点"></canvas>
+          <div class="video-area" id="video-area"><video id="video" muted playsinline preload="metadata" aria-label="原始舞蹈视频"></video><canvas id="overlay" aria-label="原视频身体关键点"></canvas>
             <div class="upload-card" id="upload-card"><div class="upload-icon">↥</div><h2>从一小段舞蹈开始</h2><p>选择视频，或拖到这里<br>支持浏览器可解码的 MP4、MOV、WebM</p><button class="primary" id="choose">选择视频 <span>＋</span></button><p class="fine">建议先用 10–20 秒片段验证效果</p></div>
           </div><div class="viewer-footer"><span class="dot coral"></span>原始机位 · 可对照查看<button id="replace" disabled>更换视频</button></div>
         </section>
@@ -24,7 +24,7 @@
           <div class="viewer-footer"><span class="dot teal"></span>估计视角 · 手脚轨迹相对骨盆</div>
         </section>
       </div>
-      <div class="analysis-settings"><label for="model">识别模型 <select id="model"><option value="full">Full · 标准</option><option value="heavy">Heavy · 较慢，可对比</option></select></label><button id="focus" disabled>定位舞者</button><button id="clear-focus" disabled>自动选择</button><span>有镜子或倒影时，定位视频开头的舞者胸腹位置。</span></div>
+      <div class="analysis-settings"><label for="model">识别模型 <select id="model"><option value="full">Full · 标准</option><option value="heavy">Heavy · 较慢，可对比</option></select></label><label for="depth-model">三维方式 <select id="depth-model" disabled><option value="base">基础估计</option><option value="temporal" disabled>时序增强 · 试验</option></select></label><button id="enhance" disabled>增强三维</button><button id="focus" disabled>定位舞者</button><button id="clear-focus" disabled>自动选择</button><span>有镜子或倒影时，定位视频开头的舞者胸腹位置。</span></div>
       <div class="analysis-panel" id="analysis-panel" hidden><div><span id="analysis-text">准备分析…</span><button id="cancel">取消分析</button></div><progress id="progress" max="100" value="0"></progress></div>
       <div class="notice" id="notice" role="status" aria-live="polite">导入视频后点击「分析动作」。首次使用需先下载官方模型与依赖。</div>
       <section class="transport" aria-label="播放控制"><div class="playback-row"><button id="play" class="play" disabled aria-label="播放">▶</button><span id="time" class="time">00:00.00 / 00:00.00</span><div class="speed-options" aria-label="播放速度"><button data-speed="0.25" aria-pressed="false">0.25×</button><button data-speed="0.5" aria-pressed="false">0.5×</button><button data-speed="0.75" aria-pressed="false">0.75×</button><button data-speed="1" aria-pressed="true">1×</button></div><button id="analyze" class="primary analyze" disabled>分析动作 ↗</button></div>
@@ -33,8 +33,8 @@
       </section>
     </section>
     <section class="tools" aria-label="动作显示设置"><div class="tool"><p class="eyebrow">移动路线</p><h3>跟着手脚，看见路径</h3><div class="toggles"><label><input type="checkbox" id="hand-trails" checked>手腕轨迹</label><label><input type="checkbox" id="foot-trails" checked>脚踝轨迹</label></div><label class="range-label">轨迹长度 <output id="trail-value">0.8 秒</output><input id="trail-length" type="range" min="0.2" max="2" step="0.1" value="0.8"></label></div>
-      <div class="tool"><p class="eyebrow">身体关系</p><h3>观察肩线与胯线</h3><div class="toggles"><label><input type="checkbox" id="body-guides" checked>肩胯辅助线</label><label><input type="checkbox" id="skeleton" checked>骨架</label><label><input type="checkbox" id="image-alignment" checked>画面对齐</label></div><p class="small-note">画面对齐让原机位方向的关节位置遵循原视频检测；深度仍是估计，侧面和背面可能有误。</p></div>
-      <div class="tool"><p class="eyebrow">观看方式</p><h3>找到适合你的参照</h3><div class="toggles"><label><input type="checkbox" id="mirror">同步镜像</label><label><input type="checkbox" id="show-overlay" checked>原视频骨架与手脚点</label></div><label class="range-label">人形透明度 <output id="opacity-value">25%</output><input id="opacity" type="range" min="0" max="0.65" step="0.05" value="0.25"></label></div>
+      <div class="tool"><p class="eyebrow">身体关系</p><h3>观察肩线与胯线</h3><div class="toggles"><label><input type="checkbox" id="body-guides" checked>肩胯辅助线</label><label><input type="checkbox" id="skeleton" checked>骨架</label><label><input type="checkbox" id="image-alignment" checked>画面对齐</label></div><p class="small-note">基础估计可用画面对齐。时序增强结合连续动作推断三维，保留自身的空间坐标；两种方式都可能估计错误。</p></div>
+      <div class="tool"><p class="eyebrow">观看方式</p><h3>找到适合你的参照</h3><div class="toggles"><label><input type="checkbox" id="mirror">同步镜像</label><label><input type="checkbox" id="show-overlay" checked>原视频骨架与手脚点</label><label><input type="checkbox" id="sound">播放原视频声音</label></div><label class="range-label">人形透明度 <output id="opacity-value">25%</output><input id="opacity" type="range" min="0" max="0.65" step="0.05" value="0.25"></label></div>
     </section>
     <footer class="notes"><p><strong>这是动作估计。</strong> 单机位看不到的姿态可能恢复错误，尤其是转身、遮挡与快速动作。橙色提示仅覆盖检测到的异常；低置信度关节会隐藏，高置信度也可能识别错；请随时对照原视频。</p><p>三维展示保留身体朝向，但以骨盆为中心，尚未恢复舞者在地面的完整移动路线。<span>空间位移请参考原视频。</span></p></footer>
   </main>
