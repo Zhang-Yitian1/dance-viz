@@ -1,4 +1,5 @@
 import {FPS,EDGES,clamp,formatTime,makeFrame,smoothFrames,frameIndex,poseAt,traceAt,clampLoop} from './core.js';
+import {checkModelAssets} from './assets.js';
 const $=id=>document.getElementById(id), video=$('video');
 const state={frames:[],raw:[],url:null,busy:false,controller:null,view:null,a:null,b:null,loop:false,issueCount:0};
 const options={mirror:false,skeleton:true,guides:true,hands:true,feet:true,trailLength:0.8,opacity:0.25,overlay:true};
@@ -26,8 +27,12 @@ async function loadVideo(file){
     notice('视频已载入。点击「分析动作」，完成后可以同步慢放、循环和换角度。');drawQuality();
   }catch(e){video.removeAttribute('src');video.load();URL.revokeObjectURL(state.url);state.url=null;$('upload-card').hidden=false;$('clip-name').textContent='导入你的舞段';$('video-meta').textContent='保留动作与音乐';$('source-badge').textContent='单人 · 全身 · 固定机位 · ≤90 秒';notice(e.message,'error');}
 }
+let visionModule = null;
 async function model(){
-  const {FilesetResolver,PoseLandmarker}=await import('../vendor/mediapipe/vision_bundle.mjs');
+  await checkModelAssets();
+  // Failed module imports are cached by browsers. A fresh URL permits retry after service recovery.
+  if (!visionModule) visionModule = await import(`../vendor/mediapipe/vision_bundle.mjs?attempt=${Date.now()}`);
+  const {FilesetResolver,PoseLandmarker}=visionModule;
   const files=await FilesetResolver.forVisionTasks('./vendor/mediapipe/wasm');
   const config={baseOptions:{modelAssetPath:'./vendor/models/pose_landmarker_full.task',delegate:'GPU'},runningMode:'VIDEO',numPoses:1,minPoseDetectionConfidence:0.5,minPosePresenceConfidence:0.5,minTrackingConfidence:0.5};
   try{return await PoseLandmarker.createFromOptions(files,config);}catch{config.baseOptions.delegate='CPU';return await PoseLandmarker.createFromOptions(files,config);}
@@ -39,7 +44,7 @@ async function analyze(){
   $('analysis-panel').hidden=false;$('progress').value=0;$('analysis-text').textContent='加载本地姿态模型…';notice('分析期间请保持此页面打开。视频文件仅在本机读取。');state.frames=[];state.raw=[];state.view.root.visible=false;drawQuality();
   let landmarker;
   try{
-    try{landmarker=await model();}catch{throw new Error('本地姿态模型未能加载。请运行 python3 scripts/download_assets.py，完成下载后重试');}if(signal.aborted)throw new DOMException('已取消','AbortError');
+    landmarker=await model();if(signal.aborted)throw new DOMException('已取消','AbortError');
     const n=Math.ceil(video.duration*FPS),raw=[];
     for(let i=0;i<n;i++){
       if(signal.aborted)throw new DOMException('已取消','AbortError');const t=i/FPS;await seek(t,signal);

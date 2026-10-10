@@ -40,5 +40,5 @@ def main():
     if args.force or not (ROOT/'vendor'/model).exists():
         print('Downloading full pose model from Google…',flush=True)
         save(model,get('https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task'))
-    print('Ready. Run: python3 -m http.server 8765 --bind 127.0.0.1')
+    print('Local model and dependencies are ready. Start with: python3 scripts/serve.py')
 if __name__=='__main__':main()
